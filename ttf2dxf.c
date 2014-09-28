@@ -18,6 +18,7 @@ This was inspired (and based on) TTT by Chris Radek <chris@timeguy.com>
 */
 
 #include <stdio.h>
+#include<wchar.h>
 #include <ctype.h>
 #include <getopt.h>
 #include <locale.h>
@@ -81,7 +82,7 @@ static P unit(P a) {
 }
 
 void line(P p) {
-    printf("  10\n%.4f\n 20\n%.4f\n",
+    wprintf(L"  10\n%.4f\n 20\n%.4f\n",
 	   p.x, p.y);
 }
 
@@ -91,7 +92,7 @@ void arc(P p1, P p2, P d) {
     double den = 2 * (p.y*d.x - p.x*d.y);
 
     if(fabs(den) < 1e-10) {
-	printf("G1 X[%.4f*#3+#5] Y[%.4f*#3+#6]\n", p2.x, p2.y);
+	wprintf(L"G1 X[%.4f*#3+#5] Y[%.4f*#3+#6]\n", p2.x, p2.y);
 	return;
     }
 
@@ -111,7 +112,7 @@ void arc(P p1, P p2, P d) {
 
     double bulge = tan(fabs(en-st)/4);
     if(r > 0) bulge = -bulge;
-    printf("  42\n%.4f\n 10\n%.4f\n  20\n%.4f\n",
+    wprintf(L"  42\n%.4f\n 10\n%.4f\n  20\n%.4f\n",
 	   bulge, p2.x, p2.y);
 }
 
@@ -210,13 +211,9 @@ void extents_add_extents( struct extents *e1, struct extents *e2 )
 
 void maybe_output_layer() {
     if(genfont) {
-      if(charcode < ' ' || charcode > '~') 
-	printf("  8\n_%d\n", charcode);
-      else
-	//printf((charcode >= 'a' && charcode <= 'z') ? "  8\n%c_\n" : "  8\n%c\n", charcode);
-	printf("  8\n%c\n", charcode);
+      wprintf(L"  8\n%lc\n",  charcode);
     } else if(layer) {
-      printf("  8\n%s\n", layer);
+      wprintf(L"  8\n%s\n", layer);
     }
   
 }
@@ -226,7 +223,7 @@ int my_move_to( const FT_Vector* to, void* user )
 {
     /* every move but the first one means we are starting a new polyline */
     /* make sure we terminate previous polyline with a seqend */
-    printf("  0\nLWPOLYLINE\n  10\n%ld.000\n 20\n%ld.000\n", to->x, to->y);
+    wprintf(L"  0\nLWPOLYLINE\n  10\n%ld.000\n 20\n%ld.000\n", to->x, to->y);
     maybe_output_layer();
     last_point = *to;
     extents_add_point(&glyph_extents, to);
@@ -239,7 +236,7 @@ int my_move_to( const FT_Vector* to, void* user )
 // B(t)=(1-t)P0 + tP1,	t in [0,1]. 
 int my_line_to( const FT_Vector* to, void* user )
 {
-    printf("  10\n%ld.000\n 20\n%ld.000\n", to->x, to->y);
+    wprintf(L"  10\n%ld.000\n 20\n%ld.000\n", to->x, to->y);
     last_point = *to;
     extents_add_point(&glyph_extents, to);
 
@@ -519,27 +516,37 @@ int main(int argc, char **argv) {
     s=(optind < argc ) ? argv[optind] : 0;
 
     /* write out preamble */
-    printf("  0\nSECTION\n  2\nENTITIES\n");
+    wprintf(L"  0\nSECTION\n  2\nENTITIES\n");
 
     extents_reset(&line_extents);
     offset = 0;
 
     if(genfont) {
+      wchar_t chars[99];
+      int i ;
+      for (i=0;i < 95; i++)
+	chars[i] = ' ' + i;
+      chars[95] = L'€';
+      chars[96] = L'£';
+      chars[97] = L'¥';
+      chars[98] = L'¢';
+      
       wchar_t wc;
-      for(wc=' '; wc<127; wc++) {
+      i = 0;
+      for(wc=chars[i]; i<99; wc=chars[++i]) {
 	render_char(face, wc, offset, linescale);
 	extents_add_extents(&line_extents, &glyph_extents);
-	printf(" 0\nDIMENSION\n 70\n70\n 1\nminx\n 13\n%ld\n",glyph_extents.minx);
+	wprintf(L" 0\nDIMENSION\n 70\n70\n 1\nminx\n 13\n%ld\n",glyph_extents.minx);
 	maybe_output_layer();
-	printf(" 0\nDIMENSION\n 70\n70\n 1\nmaxx\n13\n%ld\n",glyph_extents.maxx);
+	wprintf(L" 0\nDIMENSION\n 70\n70\n 1\nmaxx\n13\n%ld\n",glyph_extents.maxx);
 	maybe_output_layer();
-	printf(" 0\nDIMENSION\n 70\n6\n 1\nminy\n23\n%ld\n",glyph_extents.miny);
+	wprintf(L" 0\nDIMENSION\n 70\n6\n 1\nminy\n23\n%ld\n",glyph_extents.miny);
 	maybe_output_layer();
-	printf(" 0\nDIMENSION\n 70\n6\n 1\nmaxy\n23\n%ld\n",glyph_extents.maxy);
+	wprintf(L" 0\nDIMENSION\n 70\n6\n 1\nmaxy\n23\n%ld\n",glyph_extents.maxy);
 	maybe_output_layer();
-	printf(" 0\nDIMENSION\n 70\n70\n 1\nadvx\n13\n%ld\n",advance.x);
+	wprintf(L" 0\nDIMENSION\n 70\n70\n 1\nadvx\n13\n%ld\n",advance.x);
 	maybe_output_layer();
-	printf(" 0\nDIMENSION\n 70\n6\n 1\nadvy\n23\n%ld\n",advance.y);
+	wprintf(L" 0\nDIMENSION\n 70\n6\n 1\nadvy\n23\n%ld\n",advance.y);
 	maybe_output_layer();
       }
     }
@@ -556,7 +563,7 @@ int main(int argc, char **argv) {
     }
     /*todo - dimensions for !genfont*/
     /* write out the post amble stuff */
-    printf("  0\nENDSEC\n  0\nEOF\n");
+    wprintf(L"  0\nENDSEC\n  0\nEOF\n");
     return 0;
 }
 
